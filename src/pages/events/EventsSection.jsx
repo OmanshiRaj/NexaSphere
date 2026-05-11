@@ -4,7 +4,16 @@ import { events as fallbackEvents } from '../../data/eventsData';
 export default function EventsSection({ onEventClick, events = fallbackEvents }) {
   useEffect(()=>{
     const obs=new IntersectionObserver(entries=>{
-      entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('fired');obs.unobserve(e.target);}});
+      entries.forEach(e=>{
+        if(e.isIntersecting && !e.target.classList.contains('fired')){
+          e.target.classList.add('fired');
+          e.target.addEventListener('animationend', () => {
+            e.target.style.opacity = '1';
+            e.target.style.transform = 'none';
+          }, { once: true });
+          obs.unobserve(e.target);
+        }
+      });
     },{threshold:.1});
     document.querySelectorAll('#section-events .pop-in,#section-events .pop-left,#section-events .pop-right,#section-events .pop-word').forEach(el=>obs.observe(el));
     return()=>obs.disconnect();
@@ -13,7 +22,7 @@ export default function EventsSection({ onEventClick, events = fallbackEvents })
   return (
     <section className="section" id="section-events">
       <div className="container">
-        <div className="ns-reveal">
+        <div>
           <h2 className="section-title pop-word">Our Events</h2>
           <p className="section-subtitle pop-in" style={{animationDelay:'.1s'}}>Where Ideas Come to Life</p>
         </div>
