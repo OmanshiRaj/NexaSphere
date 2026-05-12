@@ -7,7 +7,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import apiRouter from './routes/api.js';
+import { adminAuthMiddleware } from './middleware/adminAuthMiddleware.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -45,7 +45,7 @@ function requestLogger(req, res, next) {
 
 app.use(requestLogger);
 
-const sessions = new Map();
+const adminAuth = adminAuthMiddleware.requireAdmin;
 const adminEvents = new EventEmitter();
 adminEvents.on('CORE_TEAM_MEMBER_ADDED', (event) => console.log(`[EVENT] CORE_TEAM_MEMBER_ADDED:`, event));
 adminEvents.on('CORE_TEAM_MEMBER_REMOVED', (event) => console.log(`[EVENT] CORE_TEAM_MEMBER_REMOVED:`, event));
@@ -123,20 +123,6 @@ async function supabaseRequest(pathname, { method = 'GET', body } = {}) {
   }
   const text = await res.text();
   return text ? JSON.parse(text) : [];
-}
-
-function parseBearer(authHeader = '') {
-  if (!authHeader.startsWith('Bearer ')) return '';
-  return authHeader.slice(7).trim();
-}
-
-function adminAuth(req, res, next) {
-  const bearer = parseBearer(req.headers.authorization || '');
-  if (!bearer || !sessions.has(bearer)) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  req.adminSession = sessions.get(bearer);
-  return next();
 }
 
 function toSafeString(value, max = 4000) {
@@ -571,17 +557,8 @@ app.delete('/api/content/activity-events/:activityKey/:eventId', async (req, res
   }
 });
 
-app.post('/api/admin/login', (req, res) => {
-  const username = process.env.ADMIN_USERNAME || 'admin';
-  const password = process.env.ADMIN_PASSWORD || 'admin123';
-  const u = String(req.body?.username || '').trim();
-  const p = String(req.body?.password || '');
-
-  if (u !== username || p !== password) return res.status(401).json({ error: 'Invalid credentials' });
-  const token = crypto.randomBytes(24).toString('hex');
-  sessions.set(token, { username: u, createdAt: Date.now() });
-  return res.json({ token, username: u });
-});
+app.post('/api/admin/login', adminAuthMiddleware.login);
+app.post('/api/admin/logout', adminAuthMiddleware.logout);
 
 app.get('/api/admin/events', adminAuth, async (req, res) => {
   return res.json({ events: await listEventsStore() });
