@@ -16,6 +16,7 @@ import { initializeSocketIO, emitToRoom, getRoom } from './config/socket.js';
 import adminStreamRouter from './routes/adminStream.js';
 import { broadcastSSEEvent } from './services/sseService.js';
 import { portfolioRepository } from './repositories/portfolioRepository.js';
+import { Mutex } from 'async-mutex';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,6 +99,23 @@ async function ensureContentFile() {
   } catch {
     await fs.writeFile(CONTENT_FILE, JSON.stringify(defaultContent, null, 2), 'utf8');
   }
+}
+const fileMutex = new Mutex();
+
+async function readContent() {
+  await ensureContentFile();
+  const raw = await fs.readFile(CONTENT_FILE, 'utf8');
+  return JSON.parse(raw);
+}
+
+async function writeContent(content) {
+  await ensureContentFile();
+  await fs.writeFile(CONTENT_FILE, JSON.stringify(content, null, 2), 'utf8');
+}
+
+// Helper to safely run file operations atomically
+export async function runWithFileLock(callback) {
+  return await fileMutex.runExclusive(callback);
 }
 
 async function readContent() {
@@ -236,6 +254,7 @@ async function createEventStore(event) {
       icon: event.icon,
       tags: event.tags,
     };
+    
     let row;
     try {
       [row] = await supabaseRequest('events', { method: 'POST', body: [payload] });
@@ -257,6 +276,8 @@ async function createEventStore(event) {
       updatedAt: row.updated_at,
     });
   }
+  
+  // Safe atomic fallback operation preventing data loss using async-mutex
   return withContentLock(async () => {
     const content = await readContent();
     content.events.unshift({ ...event, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
@@ -264,7 +285,6 @@ async function createEventStore(event) {
     return sanitizeEventRecord(content.events[0]);
   });
 }
-
 async function updateEventStore(id, patch) {
   if (HAS_SUPABASE) {
     const [row] = await supabaseRequest(`events?id=eq.${encodeURIComponent(id)}`, {
@@ -854,7 +874,6 @@ app.put('/api/portfolio', async (req, res) => {
 });
 
 
->>>>>>> upstream/main
 const port = Number(process.env.PORT || 8787);
 if (!process.env.VERCEL) {
   const boot = HAS_SUPABASE ? Promise.resolve() : ensureContentFile();
