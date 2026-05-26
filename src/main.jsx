@@ -9,9 +9,6 @@ import { HelmetProvider } from 'react-helmet-async';
 
 
 
-// Register service worker
-registerSW({ immediate: true });
-
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
@@ -21,4 +18,3 @@ createRoot(document.getElementById('root')).render(
     </HelmetProvider>
   </StrictMode>
 );
-
