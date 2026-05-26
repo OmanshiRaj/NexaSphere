@@ -1,8 +1,11 @@
 import { supabaseRequest, HAS_SUPABASE, requiredEnv, normalizePrivateKey } from '../storage/supabaseClient.js';
 import { google } from 'googleapis';
-import { normalize as normalizePath } from 'path';
 import { ZodError } from 'zod';
 import { normalizeFormSubmission } from '../validators/formSchemas.js';
+import { getPublicAppUrl } from '../utils/publicAppUrl.js';
+import { sendWelcomeVerificationEmail } from './emailService.js';
+import { broadcastSSEEvent } from './sseService.js';
+import { emitToRoom, getRoom } from '../config/socket.js';
 
 function toSafeString(value, max = 4000) {
   return String(value ?? '').trim().slice(0, max);
@@ -77,6 +80,35 @@ export const formsService = {
       } catch (sheetErr) {
         if (!savedToSupabase) throw sheetErr;
       }
+
+      // Trigger standard welcome verification email
+      try {
+        const verifyUrl = `${getPublicAppUrl()}/verify?email=${encodeURIComponent(body.collegeEmail)}`;
+        await sendWelcomeVerificationEmail(
+          body.collegeEmail,
+          body.fullName,
+          verifyUrl,
+        );
+      } catch (emailErr) {
+        console.error('[Forms Service] Failed to send welcome verification email:', emailErr);
+      }
+
+      // Broadcast real-time metric updates via SSE and Socket
+      try {
+        broadcastSSEEvent('registration', {
+          formType,
+          fullName: payload.fullName,
+          timestamp: new Date().toISOString(),
+        });
+        emitToRoom(getRoom('admin'), 'admin:new-registration', {
+          formType,
+          userName: payload.fullName,
+          timestamp: new Date(),
+        });
+      } catch (realtimeErr) {
+        console.error('[Forms Service] Failed to broadcast real-time updates:', realtimeErr);
+      }
+
       return { ok: true };
     } catch (e) {
       if (e instanceof ZodError) {
