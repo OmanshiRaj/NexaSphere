@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { generatePrefixedId } from '../utils/uuid.js';
 
 // Parses and clamps ?page / ?limit query parameters.
 // page: positive integer, minimum 1, defaults to 1.
@@ -56,7 +57,8 @@ export const eventSchema = z
       String(data.shortName || data.name)
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || `event-${Date.now()}`;
+        .replace(/^-+|-+$/g, '') || generatePrefixedId('event');
+
 
     return {
       ...data,
