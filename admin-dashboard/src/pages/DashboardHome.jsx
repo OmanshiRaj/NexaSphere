@@ -32,7 +32,7 @@ export function DashboardHome() {
       <h2 className="page-title">Dashboard</h2>
       {loading ? (
         <div className="stats-grid">
-          <Skeleton height={100} count={3} />
+          <Skeleton height={100} count={4} />
         </div>
       ) : (
         <div className="stats-grid">
@@ -43,6 +43,13 @@ export function DashboardHome() {
               <div className="stat-label">Total Events</div>
             </div>
           </div>
+          <div className="stat-card">
+          <span className="stat-icon"><AdminIcon name="Clock" size={28} /></span>
+           <div>
+          <div className="stat-value">{stats.upcomingEvents}</div>
+          <div className="stat-label">Upcoming Events</div>
+         </div>
+        </div>
           <div className="stat-card">
             <span className="stat-icon"><AdminIcon name="Users" size={28} /></span>
             <div>
