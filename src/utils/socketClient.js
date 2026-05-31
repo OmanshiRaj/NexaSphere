@@ -34,16 +34,18 @@ export function initializeSocket(serverUrl = getSocketServerUrl()) {
   }
 
   currentSocketUrl = resolvedUrl;
-  socket = io(resolvedUrl, {
-    path: getSocketPath(),
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    reconnectionAttempts: 8,
-    transports: ['websocket', 'polling'],
-    timeout: 5000,
-  });
 
+const socketOptions = {
+  path: getSocketPath(),
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  reconnectionAttempts: 8,
+  transports: ['websocket', 'polling'],
+  timeout: 5000,
+};
+
+socket = io(resolvedUrl, socketOptions);
   // Global event handlers - connection lifecycle monitoring
   socket.on('connect', () => {
     identifyUser(); // try to identify if user info is available locally
